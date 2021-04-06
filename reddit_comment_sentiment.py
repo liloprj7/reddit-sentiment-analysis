@@ -10,21 +10,27 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import emoji
 pd.set_option('display.max_colwidth', None)
 
-#input url
+# step0: download hot posts
+def urlsubreddit(subreddit_search):
+    reddit = praw.Reddit(client_id='', client_secret='', user_agent='')
+    top_list=[]
+    for submission in reddit.subreddit(subreddit_search).hot(limit=20):
+        top_list.append([submission.title,submission.id])
+    df_subreddit_top=pd.DataFrame(data=top_list)
+    df_subreddit_top=df_subreddit_top.rename(columns={0:'PostTitle',1:'PostID'})
+    #return df_subreddit_top
+    return df_subreddit_top['PostID']
 
-def urllink(url):
-    reddit = praw.Reddit(client_id='', client_secret='',    user_agent='yolo app')
-    url = str(url)
-    submission = reddit.submission(url=url)
-    submission.comments.replace_more(limit=0)
-    return submission
 
-
-#put all comments in a dataframe
-def pdallcomments(submission):
-    df_allcomments=pd.DataFrame(data=[allcomments.body for allcomments in submission.comments.list()])
+# step1: get comments by inputting single post ID
+# step2: put all comments in a dataframe
+# step3: run sentiment analysis
+def urllink(postid):
+    reddit = praw.Reddit(client_id='', client_secret='', user_agent='')
+    submission_postid = reddit.submission(id=postid)
+    submission_postid.comments.replace_more(limit=0)
+    df_allcomments=pd.DataFrame(data=[allcomments.body for allcomments in submission_postid.comments.list()])
     df_allcomments=df_allcomments.rename(columns={0:'content'})
-
     list1=[str(i).lower() for i in df_allcomments['content']]
     tokenizer = RegexpTokenizer(r"\w+")
     stop_words = set(stopwords.words('english'))
@@ -42,6 +48,16 @@ def pdallcomments(submission):
     df_allcomments['score']=score_list1
     return df_allcomments
 
-submission=urllink(input('please input an url:'))
-pdallcomments(submission).to_csv('reddit_comments_sentiment.csv')
-print('exported csv file')
+submission=urlsubreddit(input('please input name of a subreddit:'))
+print('top hot posts are shown below: ')
+print(submission)
+
+for i in range(len(submission)):
+    try:
+        result=urllink(submission[i])
+        result.to_csv('result'+str(i)+'.csv')
+        print(str(i)+' is ready!')
+    except:
+        print("something wrong")
+        pass
+
